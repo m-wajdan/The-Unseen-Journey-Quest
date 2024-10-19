@@ -1,10 +1,11 @@
-#include <iostream>
+#include <ncurses.h>
+#include<iostream>
 #include <cstdlib>
 #include <ctime>
-#include <iomanip> // For better formatting using iomanip
 
-using namespace std; 
-class Node//-----------------------------------// NODE CLASS
+using namespace std;
+
+class Node
 {
 public:
     int x, y;
@@ -15,12 +16,13 @@ public:
     Node* down;
 
     bool key;
-    bool door; // used
-    bool coin; // used
-    bool bomb; // used
-    bool Isplayer; // used
+    bool door;
+    bool coin;
+    bool bomb;
+    bool Isplayer;
 
-    Node() {
+    Node() 
+    {
         x = y = 0;
         key = door = coin = bomb = Isplayer = false;
         data = '.';
@@ -28,85 +30,118 @@ public:
     }
 };
 
-
-class Stack//----------------------------------// STACK CLASS
+class Stack
 {
-
+private:
     struct Node 
     {
         char move;
         Node* next;
     };
 
-    Node * top;
-public:
-Stack() : top(nullptr) {}
+    Node* top;
+   
 
-void push(char move) 
+public:
+    Stack() : top(nullptr) {}
+
+	 int row=0;
+ 	 int col=10;
+
+    void push(char move) 
     {
         Node* newNode = new Node();
         newNode->move = move;
         newNode->next = top;
         top = newNode;
+
+        //mvprintw(row++, col, "Pushed: %c", move);
+        refresh();
     }
-char pop() 
+
+    char pop() 
     {
-        if (top == nullptr) {
-            cout << "No moves to undo!" << endl;
-            return '\0';  // Return null character if stack is empty
+        if (top == nullptr) 
+        {
+            mvprintw(row++, col, "No moves to undo!");
+            refresh();
+            return '\0';
         }
+
         char lastMove = top->move;
         Node* temp = top;
         top = top->next;
         delete temp;
+
+        //mvprintw(row++, col, "Popped: %c", lastMove);
+        refresh();
         return lastMove;
     }
-bool isEmpty() 
+
+    bool isEmpty() 
     {
         return top == nullptr;
     }
-void clear() 
+
+    void clear() 
     {
         while (top != nullptr) {
             Node* temp = top;
             top = top->next;
             delete temp;
         }
+       // mvprintw(row++, col, "Stack cleared.");
+        refresh();
     }
 
-~Stack()
+    void printStack() 
     {
-        clear();  // Ensure all nodes are deleted when stack is destroyed
+        Node* temp = top;
+        if (temp == nullptr) {
+            mvprintw(row++, col, "Stack is empty.");
+            refresh();
+            return;
+        }
+
+        mvprintw(row++, col, "Moves in stack:");
+        while (temp != nullptr) {
+            mvprintw(row++, col, "%c", temp->move);
+            temp = temp->next;
+        }
+        refresh();
     }
 
+    ~Stack()
+    {
+        clear();
+    }
 };
-
-
-class Maze//-----------------------------------//MAZE CLASS
+class Maze
 {
 public:
     Node* head;
     Node* tail;
     int size;
-    char** initialState; // 2D array to store initial game state
+    char** initialState;
 
-    Maze() {
+    Maze()
+    {
         head = tail = nullptr;
         size = 0;
         initialState = nullptr;
     }
 
-    void createMaze(int n) {
+    void createMaze(int n) 
+    {
         size = n;
         Node* prevRow = nullptr;
         Node* currRow = nullptr;
 
-        // Allocate memory for the initial state array
         initialState = new char*[size];
         for (int i = 0; i < size; ++i) {
             initialState[i] = new char[size];
             for (int j = 0; j < size; ++j) {
-                initialState[i][j] = '.'; // Initialize with '.'
+                initialState[i][j] = '.';
             }
         }
 
@@ -140,17 +175,16 @@ public:
         }
     }
 
-    Node* NodePosition(int pos) {
-        int x = (pos - 1) / size;  // row number
-        int y = (pos - 1) % size;  // column number
+    Node* NodePosition(int pos) 
+    {
+        int x = (pos - 1) / size;
+        int y = (pos - 1) % size;
 
-        // Validate position
         if (x < 0 || x >= size || y < 0 || y >= size) {
             return nullptr;
         }
 
         Node* temp = head;
-        // Traverse rows
         for (int i = 0; i < x; ++i) {
             if (temp->down != nullptr) {
                 temp = temp->down;
@@ -158,7 +192,6 @@ public:
                 return nullptr;
             }
         }
-        // Traverse columns
         for (int j = 0; j < y; ++j) {
             if (temp->next != nullptr) {
                 temp = temp->next;
@@ -170,108 +203,198 @@ public:
         return temp;
     }
 
-    void setKeyAtNode(int pos) {
+    void setKeyAtNode(int pos) 
+    {
         Node* temp = NodePosition(pos);
+        int row = 10;
+        int col = 0;
+
         if (temp != nullptr) {
             temp->key = true;
-            initialState[temp->x][temp->y] = 'K'; // Store key in initial state.
-            // cout << "Key successfully placed at position (" << temp->x << ", " << temp->y << ")\n"; //---------------- > uncomment to show the coordinates for demo :)
+            initialState[temp->x][temp->y] = 'K';
+            mvaddch(temp->x, temp->y, 'K');
+            //mvprintw(row, col, "Key successfully placed at position (%d, %d)\n", temp->x, temp->y);
+            refresh();
         } else {
-            cout << "Failed to place key at position " << pos << endl;
+            mvprintw(row, col, "Failed to place key at position %d\n", pos);
+            refresh();
         }
     }
 
-    void setDoorAtNode(int pos) {
+    void setDoorAtNode(int pos) 
+    {
         Node* temp = NodePosition(pos);
+        int row = 12; // Adjusted row value to prevent overlap
+        int col = 0;
+
         if (temp != nullptr) {
             temp->door = true;
-            initialState[temp->x][temp->y] = 'D'; // Store door in initial state
-            // cout << "Door successfully placed at position (" << temp->x << ", " << temp->y << ")\n"; //----------------> uncomment to show the cooordinates
+            initialState[temp->x][temp->y] = 'D';
+            mvaddch(temp->x, temp->y, 'D');
+            //mvprintw(row, col, "Door successfully placed at position (%d, %d)\n", temp->x, temp->y);
+            refresh();
         } else {
-            cout << "Failed to place door at position " << pos << endl;
+            mvprintw(row, col, "Failed to place door at position %d\n", pos);
+            refresh();
         }
     }
 
-    void setBombAtNode(int pos) {
+    void setBombAtNode(int pos) 
+    {
         Node* temp = NodePosition(pos);
+        int row = 14; // Adjusted row value to prevent overlap
+        int col = 0;
+
         if (temp != nullptr) {
             temp->bomb = true;
-            initialState[temp->x][temp->y] = 'B'; // Store bomb in initial state
-            // cout << "Bomb successfully placed at position (" << temp->x << ", " << temp->y << ")\n";  //-----------------> uncomment to show the coordinates
+            initialState[temp->x][temp->y] = 'B';
+            mvaddch(temp->x, temp->y, 'B');
+            //mvprintw(row, col, "Bomb successfully placed at position (%d, %d)\n", temp->x, temp->y);
+            refresh();
         } else {
-            cout << "Failed to place bomb at position " << pos << endl;
+            mvprintw(row, col, "Failed to place bomb at position %d\n", pos);
+            refresh();
         }
     }
 
-    void printMaze() {
+    void setCoinAtNode(int pos) 
+    {
+        Node* temp = NodePosition(pos);
+        int row = 16; // Adjusted row value to prevent overlap
+        int col = 0;
+
+        if (temp != nullptr) {
+            temp->coin = true;
+            initialState[temp->x][temp->y] = 'C';
+            mvaddch(temp->x, temp->y, 'C');
+            //mvprintw(row, col, "Coin successfully placed at position (%d, %d)\n", temp->x, temp->y);
+            refresh();
+        } else {
+            mvprintw(row, col, "Failed to place coin at position %d\n", pos);
+            refresh();
+        }
+    }
+
+    void printMaze() 
+    {
         Node* rowPtr = head;
+        int row = 5; // Adjusted to start printing maze at a different row
+        int col = 50;
+
+        for (int i = 0; i < size + 2; ++i) 
+        {
+            mvprintw(row, col + 2 * i, "O");
+        }
+        row++;
+
         while (rowPtr != nullptr) {
+            int x = col;
+
+            mvprintw(row, x, "O");
+            x += 2;
+
             Node* colPtr = rowPtr;
             while (colPtr != nullptr) {
                 if (colPtr->key)
-                    cout << "K ";
+                    mvprintw(row, x, ".");
                 else if (colPtr->door)
-                    cout << "D ";
+                    mvprintw(row, x, ".");
                 else if (colPtr->bomb)
-                    cout << "B ";
+                    mvprintw(row, x, "B");
+                else if (colPtr->coin)
+                    mvprintw(row, x, "C");
                 else if (colPtr->Isplayer)
-                    cout << "P ";
+                    mvprintw(row, x, "P");
                 else
-                    cout << colPtr->data << " ";
+                    mvprintw(row, x, "%c", colPtr->data);
 
                 colPtr = colPtr->next;
+                x += 2;
             }
-            cout << endl;
+            
+            mvprintw(row, x, "O");
+            row++;
+            
             rowPtr = rowPtr->down;
         }
-    }
 
-    void printInitialState() {
-        cout << "Initial Maze State:\n";
-        for (int i = 0; i < size; ++i) {
-            for (int j = 0; j < size; ++j) {
-                cout << initialState[i][j] << " ";
-            }
-            cout << endl;
+        for (int i = 0; i < size + 2; ++i) {
+            mvprintw(row, col + 2 * i, "O");
         }
+
+        refresh();
     }
 
-    ~Maze() {
+    void printInitialState() 
+    {
+        int row = 25; // Adjusted to print initial state below other outputs
+        int col = 0;
+
+        mvprintw(row, col, "Initial Maze State:");
+        row += 1;
+
+        for (int i = 0; i < size; ++i) {
+            int x = col;
+            for (int j = 0; j < size; ++j) {
+                mvprintw(row, x, "%c ", initialState[i][j]);
+                x += 2;
+            }
+            row++;
+        }
+        refresh();
+    }
+
+    ~Maze()
+    {
+        Node* currRow = head;
+
+        while (currRow != nullptr) {
+            Node* currNode = currRow;
+            while (currNode != nullptr) {
+                Node* nextNode = currNode->next;
+                delete currNode;
+                currNode = nextNode;
+            }
+            Node* nextRow = currRow->down;
+            delete currRow;
+            currRow = nextRow;
+        }
+
         for (int i = 0; i < size; ++i) {
             delete[] initialState[i];
         }
         delete[] initialState;
     }
 };
-
-class Player//---------------------------------//PLAYER CLASS
-{
+class Player {
 public:
     Node* current;
-    Node* previousNode; // To store the previous node
+    Node* previousNode;
     int moves, undo;
     bool keyFound, coinFound, doorFound;
     char lastMove;
     Stack S;
+    int bombCounter;
+    int score;
 
-    Player() 
-    {
+    Player() {
         current = nullptr;
         previousNode = nullptr;
         moves = undo = 0;
         keyFound = coinFound = doorFound = false;
-        lastMove = ' ';  // Initialize with an empty char
+        lastMove = ' ';
+        bombCounter = 0;
+        score = 0;
     }
 
-    void putPlayer(Node* n, Maze& m) 
-    {
+    void putPlayer(Node* n, Maze& m) {
         current = n;
-        previousNode = nullptr;  // No previous node initially
+        previousNode = nullptr;
         current->Isplayer = true;
-        m.initialState[n->x][n->y] = 'P';  // Update initial state
+        m.initialState[n->x][n->y] = 'P';
     }
-    bool isReverseMove(char move) 
-    {
+
+    bool isReverseMove(char move) {
         if ((lastMove == 'w' && move == 's') || (lastMove == 's' && move == 'w') ||
             (lastMove == 'a' && move == 'd') || (lastMove == 'd' && move == 'a')) {
             return true;
@@ -279,105 +402,114 @@ public:
         return false;
     }
 
-    void checkBomb(Maze& m) 
-    {
+    void checkBomb(Maze& m) {
         if (current->bomb) {
-            cout << "BOOM! You stepped on a bomb. Game Over!" << endl;
-            cout << "\nInitial Maze State:\n";
-            m.printInitialState(); // Print the initial state of the maze
-            exit(0); // End the game
+            mvprintw(22, 0, "BOOM! You stepped on a bomb. Game Over!");
+            refresh();
+            mvprintw(23, 0, "\nInitial Maze State:\n");
+            m.printInitialState();
+            refresh();
+            endwin();
+            exit(0);
+        }
+    }
+
+    void collectCoin() {
+        if (current->coin) {
+            mvprintw(21, 50, "Coin collected at position (%d, %d)!", current->x, current->y);
+            refresh();
+            undo++;
+            current->coin = false;
         }
     }
 
     void moveUp(Maze& m) {
-        if (current->up != nullptr) 
-        {
+        if (current->up != nullptr) {
             S.push('w');
             current->Isplayer = false;
             previousNode = current;
             current = current->up;
             current->Isplayer = true;
             moves--;
-            lastMove = 'w'; // Set the last move direction
+            lastMove = 'w';
             checkBomb(m);
         } else {
-            cout << "Reached Boundary\n";
+            mvprintw(22, 50, "Reached Boundary");
+            refresh();
         }
     }
 
     void moveDown(Maze& m) {
-        if (current->down != nullptr) 
-        {
+        if (current->down != nullptr) {
             S.push('s');
             current->Isplayer = false;
             previousNode = current;
             current = current->down;
             current->Isplayer = true;
             moves--;
-            lastMove = 's'; // Set the last move direction
+            lastMove = 's';
             checkBomb(m);
         } else {
-            cout << "Reached Boundary\n";
+            mvprintw(22, 50, "Reached Boundary");
+            refresh();
         }
     }
 
-    void moveLeft(Maze& m) 
-    {
-        S.push('a');
+    void moveLeft(Maze& m) {
         if (current->prev != nullptr) {
+            S.push('a');
             current->Isplayer = false;
             previousNode = current;
             current = current->prev;
             current->Isplayer = true;
             moves--;
-            lastMove = 'a'; // Set the last move direction
+            lastMove = 'a';
             checkBomb(m);
         } else {
-            cout << "Reached Boundary\n";
+            mvprintw(22, 50, "Reached Boundary");
+            refresh();
         }
     }
 
     void moveRight(Maze& m) {
-        if (current->next != nullptr) 
-        {
+        if (current->next != nullptr) {
             S.push('d');
             current->Isplayer = false;
             previousNode = current;
             current = current->next;
             current->Isplayer = true;
             moves--;
-            lastMove = 'd'; // Set the last move direction
+            lastMove = 'd';
             checkBomb(m);
         } else {
-            cout << "Reached Boundary\n";
+            mvprintw(22, 50, "Reached Boundary");
+            refresh();
         }
     }
 
-
     void undoMove(Maze& m) {
-        if (undo > 0 && ! S.isEmpty()) {
+        if (undo > 0 && !S.isEmpty()) {
             char lastMove = S.pop();
             switch (lastMove) {
-                case 'w': moveDown(m); break;  // Reverse the previous move
+                case 'w': moveDown(m); break;
                 case 's': moveUp(m); break;
                 case 'a': moveRight(m); break;
                 case 'd': moveLeft(m); break;
             }
-            undo--;  // Decrement available undos
+            undo--;
             moves++;
-        }
-         else
-        {
-            cout << "No undos left or no moves to undo!\n";
+        } else {
+            mvprintw(22, 50, "No undos left or no moves to undo!");
+            refresh();
         }
     }
-
 
     void collectKey() {
         if (current->key) {
             keyFound = true;
-            current->key = false;  // Remove the key from the current node
-            cout << "Key collected at position (" << current->x << ", " << current->y << ")!" << endl;
+            current->key = false;
+            mvprintw(21, 50, "Key collected at position (%d, %d)!", current->x, current->y);
+            refresh();
         }
     }
 
@@ -385,270 +517,282 @@ public:
         if (current->door) {
             if (keyFound) {
                 doorFound = true;
-                cout << "You have reached the door at position (" << current->x << ", " << current->y << ")!" << endl;
+                mvprintw(21, 50, "You have reached the door at position (%d, %d)!", current->x, current->y);
+            } else {
+                mvprintw(21, 50, "You found the door, but you haven't collected the key yet!");
             }
-            else {
-                cout << "You found the door, but you haven't collected the key yet! Keep looking for the key." << endl;
-            }
+            refresh();
         }
     }
 
-    // Calculate Manhattan distance between two nodes
     int calculateDistance(Node* node1, Node* node2) {
         return abs(node1->x - node2->x) + abs(node1->y - node2->y);
     }
 
-    void MovePlayer(Maze& maze, Node* keyNode, Node* doorNode) 
-    {
-        static bool trackingKey = true; // Track the key first
-        static int previousDistance = calculateDistance(current, keyNode); // Initial distance to key
+    void MovePlayer(Maze& maze, Node* keyNode, Node* doorNode) {
+        static bool trackingKey = true;
+        static int previousDistance = calculateDistance(current, keyNode);
 
-        char command;
-        cout << "Moves left: " << moves << endl;
-        cout<< "Undos Left: "<<undo<<endl;
-        cout << "Enter command (w=up, s=down, a=left, d=right, u=undo ,q=quit): ";
-        cin >> command;
+        int command;
+        mvprintw(0, 0, "Moves left: %d", moves);
+        mvprintw(1, 0, "Undos Left: %d", undo);
+        mvprintw(2, 0, "Use arrow keys to move or 'u' to undo, 'q' to quit.");
+        refresh();
 
+        command = getch();
 
-         if (isReverseMove(command)) 
-         {
-            cout << "You can't go back to the node you just came from!" << endl;
-            return;  // Prevent the move
+        if ((command == KEY_UP && lastMove == KEY_DOWN) || 
+            (command == KEY_DOWN && lastMove == KEY_UP) ||
+            (command == KEY_LEFT && lastMove == KEY_RIGHT) || 
+            (command == KEY_RIGHT && lastMove == KEY_LEFT)) {
+            mvprintw(3, 0, "You can't go back to the node you just came from!");
+            refresh();
+            return;
         }
-
-        
 
         switch (command) {
-            case 'w': moveUp(maze); break;
-            case 's': moveDown(maze); break;
-            case 'a': moveLeft(maze); break;
-            case 'd': moveRight(maze); break;
-            case 'u': undoMove(maze);  // Handle the undo operation here
-            break;
+            case KEY_UP: moveUp(maze); break;
+            case KEY_DOWN: moveDown(maze); break;
+            case KEY_LEFT: moveLeft(maze); break;
+            case KEY_RIGHT: moveRight(maze); break;
+            case 'u': undoMove(maze); break;
             case 'q': 
-                cout << "Exiting movement control." << endl; 
-                exit(0); // Exit the game loop
+                mvprintw(3, 0, "Exiting movement control.");
+                refresh();
+                endwin();
+                exit(0);
             default: 
-                cout << "Invalid command! Use 'w', 'a', 's', 'd' to move or 'q' to quit." << endl;
+                mvprintw(3, 0, "Invalid command! Use arrow keys or 'q' to quit.");
         }
 
-             if (moves <= 0) 
-            {
-            cout << "You've run out of moves! Game Over!" << endl;
-            exit(0); // End the game
-            }
-        // After moving, check the new distance based on what we're tracking (key or door)
-        int currentDistance;
-        if (trackingKey) {
-            currentDistance = calculateDistance(current, keyNode);
-        } else {
-            currentDistance = calculateDistance(current, doorNode);
+        bombCounter++;
+
+        if (moves <= 0) {
+            mvprintw(4, 0, "You've run out of moves! Game Over!");
+            refresh();
+            maze.printInitialState();
+            endwin();
+            exit(0);
         }
 
-        // Compare distances and provide feedback
+        int currentDistance = trackingKey ? calculateDistance(current, keyNode) : calculateDistance(current, doorNode);
+
         if (currentDistance < previousDistance) {
-            cout << "You're getting closer!" << endl;
-        }
-        else if (currentDistance > previousDistance) {
-            cout << "You're moving further away!" << endl;
-        }
-        else {
-            cout << "You're maintaining the same distance." << endl;
+            mvprintw(5, 0, "You're getting closer!");
+        } else if (currentDistance > previousDistance) {
+            mvprintw(5, 0, "You're moving further away!");
+        } else {
+            mvprintw(5, 0, "You're maintaining the same distance.");
         }
 
-        // Update the previous distance for the next move
+        refresh();
         previousDistance = currentDistance;
-
+        collectCoin();
         collectKey();
         checkDoor();
 
-        // Once the key is collected, switch to tracking the door
         if (keyFound && trackingKey) {
-            trackingKey = false; // Now track the door
-            previousDistance = calculateDistance(current, doorNode); // Start measuring distance to door
+            trackingKey = false;
+            previousDistance = calculateDistance(current, doorNode);
         }
     }
 
     void displayKeyStatus() {
+        int x = 1;
+        int y = 1;
+
         if (keyFound) {
-            cout << "Key Status: Collected\n";
+            mvprintw(y, x, "Key Status: Collected");
         } else {
-            cout << "Key Status: Not Collected\n";
+            mvprintw(y, x, "Key Status: Not Collected");
         }
+        refresh();
     }
 
     void displayDoorStatus() {
+        int x = 2;
+        int y = 1;
+
         if (doorFound) {
-            cout << "Door Status: Reached to Door\n";
+            mvprintw(y, x, "Door Status: Reached to Door");
         } else {
-            cout << "Door Status: Find me ;) \n";
+            mvprintw(y, x, "Door Status: Find me ;)");
         }
+        refresh();
     }
 };
-
-// Separate GAMEOVER function outside the Player class
 void GAMEOVER(Maze& m, Player& p) {
     if (p.current->bomb) {
-        cout << "GAME OVER! You stepped on a bomb!" << endl;
-        cout << "\nInitial Maze State:\n";
-        m.printInitialState();
-        exit(0); // End the game
+        mvprintw(0, 0, "GAME OVER! You stepped on a bomb!");
+        mvprintw(1, 0, "\nInitial Maze State:\n");
+        m.printInitialState(); 
+        refresh(); 
+        getch();   
+        exit(0); 
     }
 
-    // If the player reaches the door
     if (p.current->door) {
-        // Check if the key was found first
         if (p.keyFound) {
-            cout << "YOU WON! You collected the key and reached the door!" << endl;
-            cout << "\nInitial Maze State:\n";
-            m.printInitialState();
-            exit(0); // End the game
-        }
-        else {
-            cout << "You found the door, but you haven't collected the key yet! Keep looking for the key." << endl;
+            p.score = p.moves; 
+            mvprintw(3, 0, "YOU WON! You collected the key and reached the door!");
+            mvprintw(4, 0, "Your score = %d", p.score);
+            mvprintw(5, 0, "\nInitial Maze State:\n");
+            m.printInitialState(); 
+            refresh(); 
+            getch();   
+            exit(0); 
+        } else {
+            mvprintw(3, 0, "You found the door, but you haven't collected the key yet! Keep looking for the key.");
         }
     }
 }
-
-// Corrected clearScreen function with proper message
-void clearScreen(Player& player) {
-    if (player.keyFound) {
-        cout << "You have collected the key!\n";
-    }
-    else {
-        cout << "You have not collected the key yet.\n";
-    }
-
-    #ifdef _WIN32
-        system("cls");
-    #else
-        system("clear");
-    #endif
-}
-
-class Game {                                                      // GAME CLASS
+class Game {
 public:
     Maze maze;
     Player player;
     Node* keyNode;
     Node* doorNode;
     int size;
-    int keyPos, doorPos, bombPos;
+    int keyPos, doorPos, bombPos, playerPos;
 
     Game() : size(10), keyNode(nullptr), doorNode(nullptr) {}
 
-    void selectDifficulty() {
-        int choice;
-        cout << "Select difficulty level:\n";
-        cout << "1. Easy (10x10 grid)\n";
-        cout << "2. Moderate (15x15 grid)\n";
-        cout << "3. Hard (20x20 grid)\n";
-        cout << "Enter your choice (1-3): ";
-        cin >> choice;
-
-        switch (choice) {
-            case 1:
-                size = 10;
-                break;
-            case 2:
-                size = 15;
-                break;
-            case 3:
-                size = 20;
-                break;
-            default:
-                cout << "Invalid choice. Defaulting to Easy mode (10x10 grid).\n";
-                size = 10;
-                break;
-        }
-    }
-
-    void setupGame() 
+    void selectDifficulty() 
     {
-    maze.createMaze(size);
+    int choice;
+    clear(); // Clears the screen before displaying the options
 
-    // Set positions for key, door, bomb, and player
-    srand(time(0));
-    keyPos = rand() % (size * size - 10 + 1) + 10;
+    mvprintw(1, 0, "Select difficulty level:");
+    mvprintw(2, 0, "1. Easy (10x10 grid)");
+    mvprintw(3, 0, "2. Moderate (15x15 grid)");
+    mvprintw(4, 0, "3. Hard (20x20 grid)");
+    mvprintw(5, 0, "Enter your choice (1-3): ");
+    refresh(); // Refresh the screen to show the printed output
+    getch(); // Wait for user input to proceed 
+    scanw("%d", &choice); // Read user input
 
-    do {
-        doorPos = rand() % (size * size - 10 + 1) + 10;
-    } while (keyPos == doorPos);
-
-    do {
-        bombPos = rand() % (size * size - 10 + 1) + 10;
-    } while (keyPos == bombPos || doorPos == bombPos);
-
-    // Generate a random position for the player
-    int playerPos;
-    do {
-        playerPos = rand() % (size * size - 10 + 1) + 10;
-    } while (playerPos == keyPos || playerPos == doorPos || playerPos == bombPos); // Ensure player's position is not on the key, door, or bomb
-
-    maze.setKeyAtNode(keyPos);
-    maze.setDoorAtNode(doorPos);
-    maze.setBombAtNode(bombPos);
-
-    // Place player at a random position
-    Node* playerNode = maze.NodePosition(playerPos);
-    player.putPlayer(playerNode, maze);  // Place the player on the randomly chosen node
-
-    // Store references to key and door nodes
-    keyNode = maze.NodePosition(keyPos);
-    doorNode = maze.NodePosition(doorPos);
-
-  // ** Calculate the initial distance between player and key **
-    int initialDistance = player.calculateDistance(player.current, keyNode);
-
-    // ** Adjust 'moves' based on difficulty level **
-    if (size == 10) {  // Easy level
-        player.moves = initialDistance + 6;
-        player.undo = 6;
-    } else if (size == 15) {  // Moderate level
-        player.moves = initialDistance + 2;
-        player.undo=4;
-    } else if (size == 20) {  // Hard level
-        player.moves = initialDistance;
-        player.undo=1;
+    switch (choice) {
+        case 1:
+            size = 10;
+            break;
+        case 2:
+            size = 15;
+            break;
+        case 3:
+            size = 20;
+            break;
+        default:
+            mvprintw(6, 0, "Invalid choice. Defaulting to Easy mode (10x10 grid).");
+            size = 10;
+            break;
     }
-
-    cout << "Initial distance between player and key: " << initialDistance << endl;
-    cout << "Moves available: " << player.moves << endl;
-
+    
+   
+    refresh(); // Refresh to show the default message if needed
+    clear();
+    refresh();
+    
 }
+
+    void setupGame() {
+        maze.createMaze(size);
+        srand(time(0));
+        keyPos = rand() % (size * size - 10 + 1) + 10;
+
+        do {
+            doorPos = rand() % (size * size - 10 + 1) + 10;
+        } while (keyPos == doorPos);
+
+        do {
+            bombPos = rand() % (size * size - 10 + 1) + 10;
+        } while (keyPos == bombPos || doorPos == bombPos);
+
+        int coinPos1, coinPos2;
+        do {
+            coinPos1 = rand() % (size * size - 10 + 1) + 10;
+        } while (coinPos1 == keyPos || coinPos1 == doorPos || coinPos1 == bombPos);
+
+        do {
+            coinPos2 = rand() % (size * size - 10 + 1) + 10;
+        } while (coinPos2 == keyPos || coinPos2 == doorPos || coinPos2 == bombPos || coinPos2 == coinPos1);
+
+        do {
+            playerPos = rand() % (size * size - 10 + 1) + 10;
+        } while (playerPos == keyPos || playerPos == doorPos || playerPos == bombPos || playerPos == coinPos1 || playerPos == coinPos2);
+
+        maze.setKeyAtNode(keyPos);
+        maze.setDoorAtNode(doorPos);
+        maze.setBombAtNode(bombPos);
+        maze.setCoinAtNode(coinPos1); 
+        maze.setCoinAtNode(coinPos2); 
+
+        Node* playerNode = maze.NodePosition(playerPos);
+        player.putPlayer(playerNode, maze);
+
+        keyNode = maze.NodePosition(keyPos);
+        doorNode = maze.NodePosition(doorPos);
+
+        int PlayerToKey = player.calculateDistance(player.current, keyNode);
+        int KeyToDoor = player.calculateDistance(keyNode, doorNode);
+        int totalDistance = PlayerToKey + KeyToDoor;
+
+        if (size == 10) {
+            player.moves = totalDistance + 6;
+            player.undo = 6;
+        } else if (size == 15) {
+            player.moves = totalDistance + 2;
+            player.undo = 4;
+        } else if (size == 20) {
+            player.moves = totalDistance;
+            player.undo = 1;
+        }
+
+        mvprintw(6, 0, "Initial distance between player and key: %d", PlayerToKey);
+        mvprintw(7, 0, "Distance between Key to Door: %d", KeyToDoor);
+        mvprintw(8, 0, "Moves available: %d", player.moves);
+        refresh();
+        getch();
+    }
 
     void displayStatus() {
         maze.printMaze();
+        mvprintw(0, 0, "______________________\n");
         player.displayKeyStatus();
         player.displayDoorStatus();
-        cout << "**********************\n";
+        mvprintw(1, 0, "______________________\n");
+        refresh();
     }
 
-    void processInput() {
-        player.MovePlayer(maze, keyNode, doorNode);
+    void Movement() {
+        player.MovePlayer(maze, keyNode, doorNode);    
     }
 
     void checkGameOver() {
-        // This checks if the player hit a bomb or reached the door
         GAMEOVER(maze, player);
     }
 
     void startGame() {
         while (true) {
             displayStatus();
-            processInput();
+            Movement();
             checkGameOver();
         }
     }
-
 };
-
 int main() 
 {
+    initscr();            // Start ncurses mode
+    cbreak();             // Disable line buffering
+    keypad(stdscr, TRUE); // Enable special keys like arrow keys
+    noecho();             // Do not echo input characters
+    curs_set(0);          // Hide the cursor
+
     Game game;
     game.selectDifficulty();  // Ask the user to choose a difficulty level
     game.setupGame();         // Setup the game based on the selected difficulty
     game.startGame();         // Start the game loop
+
+    endwin();             // End ncurses mode
 
     return 0;
 }
